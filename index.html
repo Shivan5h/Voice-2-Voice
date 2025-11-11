@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Riverwood AI Voice Agent</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .status {
+            padding: 15px;
+            border-radius: 10px;
+            margin: 20px 0;
+            text-align: center;
+            font-weight: bold;
+        }
+        .listening {
+            background: #ffeb3b;
+            color: #333;
+        }
+        .processing {
+            background: #2196f3;
+            color: white;
+        }
+        .speaking {
+            background: #4caf50;
+            color: white;
+        }
+        .idle {
+            background: #f5f5f5;
+            color: #666;
+        }
+        .error {
+            background: #f44336;
+            color: white;
+        }
+        .controls {
+            text-align: center;
+            margin: 30px 0;
+        }
+        button {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            border-radius: 25px;
+            font-size: 16px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: all 0.3s;
+        }
+        button:hover {
+            background: #764ba2;
+            transform: translateY(-2px);
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .transcript, .response {
+            background: #f8f9fa;
+            border: 1px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 20px 0;
+            min-height: 80px;
+        }
+        .response {
+            background: #e8f5e8;
+            border-color: #4caf50;
+        }
+        .conversation-history {
+            max-height: 400px;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 10px;
+            padding: 15px;
+            margin: 20px 0;
+            background: #fafafa;
+        }
+        .message {
+            margin: 10px 0;
+            padding: 12px 15px;
+            border-radius: 10px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background: #e3f2fd;
+            margin-left: auto;
+            text-align: left;
+            border-bottom-right-radius: 5px;
+        }
+        .ai-message {
+            background: #f3e5f5;
+            margin-right: auto;
+            border-bottom-left-radius: 5px;
+        }
+        .system-message {
+            background: #fff3cd;
+            margin: 5px auto;
+            text-align: center;
+            max-width: 90%;
+            font-size: 14px;
+            color: #856404;
+        }
+        .text-input {
+            width: 100%;
+            padding: 15px;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            font-size: 16px;
+            margin: 10px 0;
+            box-sizing: border-box;
+        }
+        .text-submit {
+            width: 100%;
+            padding: 15px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .text-submit:hover {
+            background: #764ba2;
+        }
+        .audio-player {
+            width: 100%;
+            margin: 10px 0;
+        }
+        .info {
+            background: #e3f2fd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-size: 14px;
+        }
+        .browser-recognition {
+            background: #fff3cd;
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            border: 1px solid #ffeaa7;
+        }
+        .input-section {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+            border: 1px solid #e9ecef;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🏗️ Riverwood AI Voice Agent</h1>
+        
+        <div class="info">
+            <strong>Note:</strong> For best results, use Chrome/Firefox and allow microphone access.
+        </div>
+        
+        <div class="browser-recognition">
+            <strong>Quick Start:</strong> Click "Start Browser Speech" for instant voice recognition (no server processing needed).
+        </div>
+        
+        <div class="status idle" id="status">
+            Ready to connect
+        </div>
+
+        <div class="controls">
+            <button id="connectBtn" onclick="connectWebSocket()">Connect</button>
+            <button id="startBtn" onclick="startListening()" disabled>Start Recording</button>
+            <button id="stopBtn" onclick="stopListening()" disabled>Stop Recording</button>
+            <button id="browserSpeechBtn" onclick="startBrowserSpeech()">Start Browser Speech</button>
+        </div>
+
+        <div class="conversation-history" id="conversation">
+            <div class="message ai-message">
+                <strong>Riverwood AI:</strong> Namaste! Welcome to Riverwood Projects. How can I help you today?
+            </div>
+        </div>
+
+        <div class="input-section">
+            <h3>Text Input</h3>
+            <input type="text" class="text-input" id="textInput" placeholder="Type your message here...">
+            <button class="text-submit" onclick="sendTextMessage()">Send Text Message</button>
+        </div>
+
+        <h3>Live Transcript</h3>
+        <div class="transcript" id="transcript">
+            Your speech will appear here...
+        </div>
+
+        <h3>AI Response</h3>
+        <div class="response" id="response">
+            AI response will appear here...
+        </div>
+
+        <audio id="audioPlayer" class="audio-player" controls style="display: none;"></audio>
+    </div>
+
+    <script>
+        let mediaRecorder;
+        let audioChunks = [];
+        let isRecording = false;
+        let ws = null;
+        let browserSpeechRecognition = null;
+
+        function updateStatus(status, text) {
+            const statusEl = document.getElementById('status');
+            statusEl.className = 'status ' + status;
+            statusEl.textContent = text;
+        }
+
+        function addMessage(sender, text, messageType = 'normal') {
+            const conversation = document.getElementById('conversation');
+            const messageDiv = document.createElement('div');
+            
+            if (messageType === 'system') {
+                messageDiv.className = 'message system-message';
+                messageDiv.innerHTML = `<strong>System:</strong> ${text}`;
+            } else {
+                messageDiv.className = `message ${sender}-message`;
+                const senderName = sender === 'user' ? 'You' : 'Riverwood AI';
+                messageDiv.innerHTML = `<strong>${senderName}:</strong> ${text}`;
+            }
+            
+            conversation.appendChild(messageDiv);
+            conversation.scrollTop = conversation.scrollHeight;
+        }
+
+        function playAudio(base64Audio) {
+            if (!base64Audio) return;
+            
+            const audioPlayer = document.getElementById('audioPlayer');
+            audioPlayer.src = 'data:audio/mp3;base64,' + base64Audio;
+            audioPlayer.style.display = 'block';
+            audioPlayer.play().catch(e => console.log('Audio play failed:', e));
+        }
+
+        async function connectWebSocket() {
+            try {
+                updateStatus('processing', 'Connecting...');
+                
+                ws = new WebSocket('ws://localhost:8000/ws');
+                
+                ws.onopen = () => {
+                    updateStatus('idle', 'Connected! You can start recording or type a message');
+                    document.getElementById('connectBtn').disabled = true;
+                    document.getElementById('startBtn').disabled = false;
+                    addMessage('system', 'Connected to Riverwood AI', 'system');
+                };
+                
+                ws.onmessage = (event) => {
+                    const data = JSON.parse(event.data);
+                    console.log('WebSocket message:', data);
+                    
+                    if (data.type === 'response') {
+                        document.getElementById('response').textContent = data.text;
+                        addMessage('ai', data.text);
+                        if (data.audio_output) {
+                            playAudio(data.audio_output);
+                        }
+                        updateStatus('speaking', 'AI is responding...');
+                        setTimeout(() => updateStatus('idle', 'Ready for next input'), 3000);
+                    } else if (data.type === 'transcript') {
+                        // This handles audio transcript from server
+                        document.getElementById('transcript').textContent = data.text;
+                    } else if (data.type === 'error') {
+                        updateStatus('error', 'Error: ' + data.text);
+                        addMessage('system', 'Error: ' + data.text, 'system');
+                    }
+                };
+                
+                ws.onclose = () => {
+                    updateStatus('idle', 'Connection closed');
+                    document.getElementById('connectBtn').disabled = false;
+                    document.getElementById('startBtn').disabled = true;
+                    document.getElementById('stopBtn').disabled = true;
+                    addMessage('system', 'Disconnected from server', 'system');
+                };
+                
+                ws.onerror = (error) => {
+                    console.error('WebSocket error:', error);
+                    updateStatus('error', 'Connection error');
+                    addMessage('system', 'WebSocket connection error', 'system');
+                };
+                
+            } catch (error) {
+                console.error('Connection error:', error);
+                updateStatus('error', 'Connection failed');
+                addMessage('system', 'Failed to connect to server', 'system');
+            }
+        }
+
+        // Browser Speech Recognition (Instant - no server needed)
+        function startBrowserSpeech() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                alert('Browser speech recognition not supported. Please use Chrome or Edge.');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            browserSpeechRecognition = new SpeechRecognition();
+            
+            browserSpeechRecognition.continuous = false;
+            browserSpeechRecognition.interimResults = false;
+            browserSpeechRecognition.lang = 'hi-IN'; // Support Hindi and English
+
+            browserSpeechRecognition.onstart = () => {
+                updateStatus('listening', '🎤 Browser listening... Speak now');
+                document.getElementById('browserSpeechBtn').textContent = 'Listening...';
+                document.getElementById('browserSpeechBtn').disabled = true;
+            };
+
+            browserSpeechRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('transcript').textContent = transcript;
+                addMessage('user', transcript); // Add user message to chat
+                updateStatus('processing', 'Processing...');
+                
+                // Send to AI
+                sendTextToAI(transcript);
+            };
+
+            browserSpeechRecognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                updateStatus('error', 'Speech recognition error: ' + event.error);
+                document.getElementById('browserSpeechBtn').textContent = 'Start Browser Speech';
+                document.getElementById('browserSpeechBtn').disabled = false;
+                addMessage('system', 'Speech recognition error: ' + event.error, 'system');
+            };
+
+            browserSpeechRecognition.onend = () => {
+                document.getElementById('browserSpeechBtn').textContent = 'Start Browser Speech';
+                document.getElementById('browserSpeechBtn').disabled = false;
+                updateStatus('idle', 'Ready');
+            };
+
+            browserSpeechRecognition.start();
+        }
+
+        async function sendTextToAI(text) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Please connect first');
+                return;
+            }
+            
+            // Send via WebSocket
+            ws.send(JSON.stringify({
+                type: 'text_input',
+                text: text
+            }));
+            
+            updateStatus('processing', 'Getting AI response...');
+        }
+
+        // Original recording functionality
+        async function startListening() {
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Please connect first');
+                return;
+            }
+            
+            try {
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        sampleRate: 16000,
+                        channelCount: 1,
+                        echoCancellation: true,
+                        noiseSuppression: true
+                    } 
+                });
+                
+                // Use WAV format for better compatibility
+                const options = { 
+                    mimeType: 'audio/webm;codecs=opus',
+                    audioBitsPerSecond: 128000
+                };
+                
+                mediaRecorder = new MediaRecorder(stream, options);
+                
+                audioChunks = [];
+                
+                mediaRecorder.ondataavailable = (event) => {
+                    if (event.data.size > 0) {
+                        audioChunks.push(event.data);
+                    }
+                };
+                
+                mediaRecorder.onstop = async () => {
+                    const audioBlob = new Blob(audioChunks, { type: 'audio/webm' });
+                    await sendAudioToServer(audioBlob);
+                    
+                    // Stop all tracks
+                    stream.getTracks().forEach(track => track.stop());
+                };
+                
+                mediaRecorder.start(1000); // Collect data every second
+                isRecording = true;
+                updateStatus('listening', '🎤 Recording... Speak now');
+                document.getElementById('startBtn').disabled = true;
+                document.getElementById('stopBtn').disabled = false;
+                
+            } catch (error) {
+                console.error('Error starting recording:', error);
+                updateStatus('error', 'Microphone access denied');
+                alert('Please allow microphone access to use voice features');
+                addMessage('system', 'Microphone access denied', 'system');
+            }
+        }
+
+        function stopListening() {
+            if (mediaRecorder && isRecording) {
+                mediaRecorder.stop();
+                isRecording = false;
+                updateStatus('processing', 'Processing your speech...');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        async function sendAudioToServer(audioBlob) {
+            try {
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'recording.webm');
+                
+                const response = await fetch('/process_audio', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const result = await response.json();
+                if (result.success) {
+                    document.getElementById('transcript').textContent = result.transcript;
+                    document.getElementById('response').textContent = result.response;
+                    addMessage('user', result.transcript); // Add user message to chat
+                    addMessage('ai', result.response); // Add AI response to chat
+                    
+                    if (result.audio_output) {
+                        playAudio(result.audio_output);
+                    }
+                    
+                    updateStatus('speaking', 'AI is speaking...');
+                    setTimeout(() => updateStatus('idle', 'Ready for next input'), 3000);
+                } else {
+                    throw new Error(result.error);
+                }
+                
+            } catch (error) {
+                console.error('Error sending audio:', error);
+                updateStatus('error', 'Error processing audio');
+                addMessage('system', 'Error processing audio: ' + error.message, 'system');
+            }
+        }
+
+        function sendTextMessage() {
+            const textInput = document.getElementById('textInput');
+            const text = textInput.value.trim();
+            
+            if (!text) {
+                alert('Please enter a message');
+                return;
+            }
+            
+            if (!ws || ws.readyState !== WebSocket.OPEN) {
+                alert('Please connect first');
+                return;
+            }
+            
+            // Add user message to chat immediately
+            addMessage('user', text);
+            document.getElementById('transcript').textContent = text;
+            
+            // Send to AI
+            sendTextToAI(text);
+            
+            // Clear input
+            textInput.value = '';
+            updateStatus('processing', 'Sending message...');
+        }
+
+        // Allow Enter key to send text message
+        document.getElementById('textInput').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendTextMessage();
+            }
+        });
+
+        // Auto-focus on text input
+        document.getElementById('textInput').focus();
+    </script>
+</body>
+</html>
